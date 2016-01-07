@@ -78,7 +78,8 @@ describe('Category API', function(){
 			});
 		});
 
-		app.use(require('./api')(wagner));
+		var func = require('./api')(wagner);
+		app.use(func);
 
 		server = app.listen(3000);
 	});
