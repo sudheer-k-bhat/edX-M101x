@@ -31,7 +31,7 @@ module.exports = function(wagner){
 			return res.status(status.UNAUTHORIZED)
 				.json({error: 'Not logged in'});
 		req.user.populate({path: 'data.cart.product', model: 'Product'}, handleOne.bind(null, 'user', res));
-	}));
+	});
 
 	api.get('/category/id/:id', wagner.invoke(function(Category){
 		return function(req, res){
@@ -94,6 +94,7 @@ function handleOne(property, res, error, result){
 	if(!result)
 		return res.status(status.NOT_FOUND).
 						json( {error: 'Not Found'} );
+	//console.log(result);
 	var json = {};
 	json[property] = result;
 	res.json(json);
