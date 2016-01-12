@@ -12,6 +12,7 @@ describe('Category API', function() {
 	var Category;
 	var Product;
 	var User;
+	var Stripe;
 
 	var PRODUCT_ID = '000000000000000000000001';
 
@@ -76,6 +77,9 @@ describe('Category API', function() {
 
 		// Bootstrap server
 		models = require('./models')(wagner);
+		deps = require('./dependencies')(wagner);
+
+		Stripe = deps.Stripe;
 
 		// Make models available in tests
 		Category = models.Category;
@@ -116,6 +120,41 @@ describe('Category API', function() {
 								done();
 							});
 						});
+					});
+				});
+			});
+		});
+	});
+
+	it('can checkout', function(done){
+		this.timeout(5000);
+		var url = URL_ROOT + '/checkout';
+
+		User.findOne({}, function(error, user){
+			assert.ifError(error);
+			user.data.cart = [{product: PRODUCT_ID, quantity: 1}];
+			user.save(function(error){
+				assert.ifError(error);
+				superagent.post(url).send({
+					stripeToken:{
+						number: '4242424242424242',
+						cvc: '123',
+						exp_month: '12',
+						exp_year: '2016'
+					}
+				}).end(function(error, res){
+					assert.ifError(error);
+					assert.equal(res.status, 200);
+					var result;
+					assert.doesNotThrow(function(){
+						result = JSON.parse(res.text);
+					});
+					assert.ok(result.id);
+					Stripe.charges.retrieve(result.id, function(error, charge){
+						assert.ifError(error);
+						assert.ok(charge);
+						assert.equal(charge.amount, 2000 * 100);
+						done();
 					});
 				});
 			});
