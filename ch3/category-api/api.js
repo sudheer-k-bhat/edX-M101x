@@ -3,19 +3,45 @@ var express = require('express');
 var status = require('http-status');
 var _ = require('underscore');
 
-module.exports = function(wagner){
+module.exports = function(wagner) {
 	var api = express.Router();
 
 	api.use(bodyparser.json());
 
-	api.post('/checkout', wagner.invoke(function(User, Stripe){
-		return function(req, res){
-			if(!req.user)
+	api.get('/product/text/:query', wagner.invoke(function(Product) {
+		return function(req, res) {
+			Product.find({
+					$text: {
+						$search: req.params.query
+					}
+				}, {
+					score: {
+						$meta: 'textScore'
+					}
+				})
+				.sort({
+					score: {
+						$meta: 'textScore'
+					}
+				})
+				.limit(10)
+				.exec(handleMany.bind(null, 'products', res))
+		};
+	}));
+
+	api.post('/checkout', wagner.invoke(function(User, Stripe) {
+		return function(req, res) {
+			if (!req.user)
 				return res.status(status.UNAUTHORIZED)
-					.json({error: 'Not logged in'});
-			req.user.populate({path: 'data.cart.product', model: 'Product'}, function(error, user){
+					.json({
+						error: 'Not logged in'
+					});
+			req.user.populate({
+				path: 'data.cart.product',
+				model: 'Product'
+			}, function(error, user) {
 				var totalCostUSD = 0;
-				_.each(user.data.cart, function(item){
+				_.each(user.data.cart, function(item) {
 					totalCostUSD += item.product.internal.approximatePriceUSD * item.quantity;
 				});
 
@@ -24,94 +50,137 @@ module.exports = function(wagner){
 					currency: 'usd',
 					source: req.body.stripeToken,
 					description: 'Example charge'
-				}, function(err, charge){
-					if(err && err.type === 'StripeCardError')
-						return res.status(status.BAD_REQUEST).json({error: err.toString()});
-					if(err){
+				}, function(err, charge) {
+					if (err && err.type === 'StripeCardError')
+						return res.status(status.BAD_REQUEST).json({
+							error: err.toString()
+						});
+					if (err) {
 						console.log(err);
-						return res.status(status.INTERNAL_SERVER_ERROR).json({error: err.toString()});
+						return res.status(status.INTERNAL_SERVER_ERROR).json({
+							error: err.toString()
+						});
 					}
 					req.user.data.cart = [];
-					req.user.save(function(){
-						return res.json({id: charge.id});
+					req.user.save(function() {
+						return res.json({
+							id: charge.id
+						});
 					});
 				});
 			});
 		};
 	}));
 
-	api.put('/me/cart', wagner.invoke(function(User){
-		return function(req, res){
-			try{
+	api.put('/me/cart', wagner.invoke(function(User) {
+		return function(req, res) {
+			try {
 				var cart = req.body.data.cart;
-			}catch(e){
+			} catch (e) {
 				return res.status(status.BAD_REQUEST)
-					.json( {error: 'No cart specified!'} );
+					.json({
+						error: 'No cart specified!'
+					});
 			}
 
 			req.user.data.cart = cart;
-			req.user.save(function(error, user){
-				if(error)
+			req.user.save(function(error, user) {
+				if (error)
 					return res.status(status.INTERNAL_SERVER_ERROR)
-						.json({error: error.toString()});
-				return res.json( {user: user} );
+						.json({
+							error: error.toString()
+						});
+				return res.json({
+					user: user
+				});
 			});
 		};
 	}));
 
-	api.get('/me', function(req, res){
-		if(!req.user)
+	api.get('/me', function(req, res) {
+		if (!req.user)
 			return res.status(status.UNAUTHORIZED)
-				.json({error: 'Not logged in'});
-		req.user.populate({path: 'data.cart.product', model: 'Product'}, handleOne.bind(null, 'user', res));
+				.json({
+					error: 'Not logged in'
+				});
+		req.user.populate({
+			path: 'data.cart.product',
+			model: 'Product'
+		}, handleOne.bind(null, 'user', res));
 	});
 
-	api.get('/category/id/:id', wagner.invoke(function(Category){
-		return function(req, res){
-			Category.findOne( {_id: req.params.id} , function(error, category){
-				if(error){
+	api.get('/category/id/:id', wagner.invoke(function(Category) {
+		return function(req, res) {
+			Category.findOne({
+				_id: req.params.id
+			}, function(error, category) {
+				if (error) {
 					return res.status(status.INTERNAL_SERVER_ERROR).
-						json( {error: error.toString()} );
+					json({
+						error: error.toString()
+					});
 				}
-				if(!category){
+				if (!category) {
 					return res.status(status.NOT_FOUND).
-						json( {error: 'Not Found'} );
+					json({
+						error: 'Not Found'
+					});
 				}
-				res.json( {category: category} );
+				res.json({
+					category: category
+				});
 			});
 		};
 	}));
 
-	api.get('/category/parent/:id', wagner.invoke(function(Category){
-		return function(req, res){
+	api.get('/category/parent/:id', wagner.invoke(function(Category) {
+		return function(req, res) {
 			Category
-				.find( {parent: req.params.id} )
-				.sort( {_id: 1} )
-				.exec(function(error, categories){
-					if(error){
+				.find({
+					parent: req.params.id
+				})
+				.sort({
+					_id: 1
+				})
+				.exec(function(error, categories) {
+					if (error) {
 						return res.status(status.INTERNAL_SERVER_ERROR).
-							json( {error: error.toString()} );
+						json({
+							error: error.toString()
+						});
 					}
-					res.json( {categories: categories} );
+					res.json({
+						categories: categories
+					});
 				});
 		};
 	}));
 
-	api.get('/product/id/:id', wagner.invoke(function(Product){
-		return function(req, res){
-			Product.findOne( {_id: req.params.id} , handleOne.bind(null, 'product', res));
+	api.get('/product/id/:id', wagner.invoke(function(Product) {
+		return function(req, res) {
+			Product.findOne({
+				_id: req.params.id
+			}, handleOne.bind(null, 'product', res));
 		};
 	}));
 
-	api.get('/product/category/:id', wagner.invoke(function(Product){
-		return function(req, res){
-			var sort = {name: 1};
-			if(req.query.price === "1")
-				sort = {'internal.approximatePriceUSD': 1};
-			else if(req.query.price === "-1")
-				sort = {'internal.approximatePriceUSD': -1};
+	api.get('/product/category/:id', wagner.invoke(function(Product) {
+		return function(req, res) {
+			var sort = {
+				name: 1
+			};
+			if (req.query.price === "1")
+				sort = {
+					'internal.approximatePriceUSD': 1
+				};
+			else if (req.query.price === "-1")
+				sort = {
+					'internal.approximatePriceUSD': -1
+				};
 
-			Product.find( {'category.ancestors': req.params.id} )
+			Product.find({
+					'category.ancestors': req.params.id
+				})
 				.sort(sort)
 				.exec(handleMany.bind(null, 'products', res));
 		};
@@ -120,24 +189,30 @@ module.exports = function(wagner){
 	return api;
 };
 
-function handleOne(property, res, error, result){
-	if(error)
+function handleOne(property, res, error, result) {
+	if (error)
 		return res.status(status.INTERNAL_SERVER_ERROR).
-						json( {error: error.toString()} );
-	if(!result)
+	json({
+		error: error.toString()
+	});
+	if (!result)
 		return res.status(status.NOT_FOUND).
-						json( {error: 'Not Found'} );
+	json({
+		error: 'Not Found'
+	});
 	//console.log(result);
 	var json = {};
 	json[property] = result;
 	res.json(json);
 }
 
-function handleMany(property, res, error, result){
-	if(error)
+function handleMany(property, res, error, result) {
+	if (error)
 		return res.status(status.INTERNAL_SERVER_ERROR).
-						json( {error: error.toString()} );
+	json({
+		error: error.toString()
+	});
 	var json = {};
 	json[property] = result;
-	res.json(json);	
+	res.json(json);
 }
