@@ -1,0 +1,20 @@
+<html ng-app="myApp">
+	<head>
+		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular.js"></script>
+		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular-route.js"></script>
+
+		<script type="text/javascript">
+			var app = angular.module('myApp', ['ng', 'ngRoute']);
+
+			app.config(function($routeProvider){
+				$routeProvider
+					.when('/', {template: '<h1>Home page</h1><a ng-href="#/about">About</a>'})
+					.when('/about', {template: '<a ng-href="#/">Back</a>'});
+			});
+		</script>
+	</head>
+
+	<body>
+		<div ng-view></div>
+	</body>
+</html>

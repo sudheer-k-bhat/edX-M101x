@@ -9,10 +9,6 @@ var URL_ROOT = "http://localhost:3000";
 
 describe('Category API', function() {
 	var server;
-	var Category;
-	var Product;
-	var User;
-	var Stripe;
 
 	var PRODUCT_ID = '000000000000000000000001';
 
@@ -72,22 +68,27 @@ describe('Category API', function() {
 		}
 	}];
 
+	var deps;
+
 	before(function() {
 		var app = express();
 
 		// Bootstrap server
-		models = require('./models')(wagner);
-		deps = require('./dependencies')(wagner);
-
-		Stripe = deps.Stripe;
+		require('./models')(wagner);
+		require('./dependencies')(wagner);
 
 		// Make models available in tests
-		Category = models.Category;
-		Product = models.Product;
-		User = models.User;
+		deps = wagner.invoke(function(Category, Product, Stripe, User){
+			return {
+				Category: Category,
+				Product: Product,
+				Stripe: Stripe,
+				User: User
+			}
+		});
 
 		app.use(function(req, res, next) {
-			User.findOne({}, function(error, user) {
+			deps.User.findOne({}, function(error, user) {
 				assert.ifError(error);
 				req.user = user;
 				next();
@@ -105,17 +106,17 @@ describe('Category API', function() {
 
 	beforeEach(function(done) {
 		//Make sure categories are empty before each test
-		Category.remove({}, function(error) {
+		deps.Category.remove({}, function(error) {
 			assert.ifError(error);
-			Product.remove({}, function(error) {
+			deps.Product.remove({}, function(error) {
 				assert.ifError(error);
-				User.remove({}, function(error) {
+				deps.User.remove({}, function(error) {
 					assert.ifError(error);
-					User.create(users, function(error, user) {
+					deps.User.create(users, function(error, user) {
 						assert.ifError(error);
-						Category.create(categories, function(error, categories) {
+						deps.Category.create(categories, function(error, categories) {
 							assert.ifError(error);
-							Product.create(products, function(error, products) {
+							deps.Product.create(products, function(error, products) {
 								assert.ifError(error);
 								done();
 							});
@@ -145,10 +146,10 @@ describe('Category API', function() {
 	});
 
 	it('can checkout', function(done){
-		this.timeout(5000);
+		this.timeout(10000);
 		var url = URL_ROOT + '/checkout';
 
-		User.findOne({}, function(error, user){
+		deps.User.findOne({}, function(error, user){
 			assert.ifError(error);
 			user.data.cart = [{product: PRODUCT_ID, quantity: 1}];
 			user.save(function(error){
@@ -168,7 +169,7 @@ describe('Category API', function() {
 						result = JSON.parse(res.text);
 					});
 					assert.ok(result.id);
-					Stripe.charges.retrieve(result.id, function(error, charge){
+					deps.Stripe.charges.retrieve(result.id, function(error, charge){
 						assert.ifError(error);
 						assert.ok(charge);
 						assert.equal(charge.amount, 2000 * 100);
@@ -193,7 +194,7 @@ describe('Category API', function() {
 			.end(function(error, res) {
 				assert.ifError(error);
 				assert.equal(res.status, status.OK);
-				User.findOne({}, function(error, user) {
+				deps.User.findOne({}, function(error, user) {
 					assert.ifError(error);
 					assert.equal(user.data.cart.length, 1);
 					assert.equal(user.data.cart[0].product, PRODUCT_ID);
@@ -205,7 +206,7 @@ describe('Category API', function() {
 
 	it('can load users cart', function(done) {
 		var url = URL_ROOT + '/me';
-		User.findOne({}, function(error, user) {
+		deps.User.findOne({}, function(error, user) {
 			assert.ifError(error);
 			user.data.cart = [{
 				product: PRODUCT_ID,
