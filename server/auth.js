@@ -1,4 +1,4 @@
-function setupAuth(Config, User, app) {
+function setupAuth(User, Config, app) {
   var passport = require('passport');
   var FacebookStrategy = require('passport-facebook').Strategy;
 
@@ -18,9 +18,7 @@ function setupAuth(Config, User, app) {
     {
       clientID: Config.facebookClientId,
       clientSecret: Config.facebookClientSecret,
-      callbackURL: 'http://localhost:3000/auth/facebook/callback',
-      // Necessary for new version of Facebook graph API
-      profileFields: ['id', 'emails', 'name']
+      callbackURL: 'http://localhost:3000/auth/facebook/callback'
     },
     function(accessToken, refreshToken, profile, done) {
       if (!profile.emails || !profile.emails.length) {
@@ -50,14 +48,16 @@ function setupAuth(Config, User, app) {
   app.use(passport.session());
 
   // Express routes for auth
-  app.get('/auth/facebook',function(req, res, next){
-    var redirect = encodeURIComponent(req.query.redirect || '/');
-    passport.authenticate('facebook',
+  app.get('/auth/facebook',
+    function(req, res, next) {
+      var redirect = encodeURIComponent(req.query.redirect || '/');
+
+      passport.authenticate('facebook',
         {
           scope: ['email'],
           callbackURL: 'http://localhost:3000/auth/facebook/callback?redirect=' + redirect
         })(req, res, next);
-  });
+    });
 
   app.get('/auth/facebook/callback',
     function(req, res, next) {
