@@ -20,7 +20,11 @@ _.each(services, function(factory, name){
 var app = angular.module('mean-retail', ['mean-retail.components', 'ngRoute']);
 
 app.config(function($routeProvider){
-	$routeProvider.when('/product/:id', {
+	$routeProvider
+	.when('/product/:id', {
 		template: '<product-details></product-details>'
+	})
+	.when('/category/:category', {
+		templateUrl: '/ch4/7.navbar/templates/category_view.html'
 	});
 });

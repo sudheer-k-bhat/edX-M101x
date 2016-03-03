@@ -18,6 +18,52 @@ exports.ProductDetailsController = function($scope, $routeParams, $http){
 		$scope.$emit('ProductDetailsController');
 	},0);	
 };
+
+exports.CategoryTreeController = function($scope, $routeParams, $http){
+	var encoded = encodeURIComponent($routeParams.category);
+
+	$http.get('/api/v1/category/id/' + encoded)
+		.success(function(data){
+			$scope.category = data.category;
+			$http.get('/api/v1/category/parent/' + encoded)
+				.success(function(data){
+					$scope.children = data.categories;
+				});
+		});
+
+	setTimeout(function(){
+		$scope.$emit('CategoryTreeController');
+	},0);
+};
+
+exports.CategoryProductsController = function($scope, $routeParams, $http){
+	var encoded = encodeURIComponent($routeParams.category);
+
+	$scope.price = undefined;
+
+	$scope.handlePriceClick = function(){
+		if ($scope.price === undefined){
+			$scope.price = -1;
+		} else {
+			$scope.price = 0 - $scope.price;
+		}
+		$scope.load();
+	};
+
+	$scope.load = function(){
+		var queryParams = {price: $scope.price};
+		$http.get('/api/v1/product/category/' + encoded, {params: queryParams})
+			.success(function(data){
+				$scope.products = data.products;
+			});
+	};
+
+	$scope.load();
+
+	setTimeout(function(){
+		$scope.$emit('CategoryProductsController');
+	},0);
+};
 },{}],2:[function(require,module,exports){
 exports.userMenu = function(){
 	return {
@@ -31,6 +77,20 @@ exports.productDetails = function(){
 		controller: 'ProductDetailsController',
 		templateUrl: '/ch4/7.navbar/templates/product_details.html'
 	};
+};
+
+exports.categoryProducts = function(){
+	return {
+		controller: 'CategoryProductsController',
+		templateUrl: '/ch4/7.navbar/templates/category_products.html'
+	}
+};
+
+exports.categoryTree = function(){
+	return {
+		controller: 'CategoryTreeController',
+		templateUrl: '/ch4/7.navbar/templates/category_tree.html'
+	}
 };
 },{}],3:[function(require,module,exports){
 var controllers = require('./controllers');
@@ -55,8 +115,12 @@ _.each(services, function(factory, name){
 var app = angular.module('mean-retail', ['mean-retail.components', 'ngRoute']);
 
 app.config(function($routeProvider){
-	$routeProvider.when('/product/:id', {
+	$routeProvider
+	.when('/product/:id', {
 		template: '<product-details></product-details>'
+	})
+	.when('/category/:category', {
+		templateUrl: '/ch4/7.navbar/templates/category_view.html'
 	});
 });
 },{"./controllers":1,"./directives":2,"./services":6,"underscore":5}],4:[function(require,module,exports){
