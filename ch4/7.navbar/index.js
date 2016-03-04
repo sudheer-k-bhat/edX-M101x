@@ -26,5 +26,7 @@ app.config(function($routeProvider){
 	})
 	.when('/category/:category', {
 		templateUrl: '/ch4/7.navbar/templates/category_view.html'
-	});
+	})
+	.when('/checkout', {
+		template: '<checkout></checkout>'});
 });

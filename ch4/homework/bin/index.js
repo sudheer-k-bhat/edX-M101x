@@ -1,164 +1,196 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-exports.UserMenuController = function($scope, $user){
-	$scope.user = $user;
+exports.AddToCartController = function($scope, $http, $user, $timeout) {
+  $scope.addToCart = function(product) {
+    var obj = { product: product._id, quantity: 1 };
+    $user.user.data.cart.push(obj);
 
-	setTimeout(function(){
-		$scope.$emit('UserMenuController');
-	},0);
+    $http.
+      put('/api/v1/me/cart', $user.user).
+      success(function(data) {
+        $user.loadUser();
+        $scope.success = true;
+
+        $timeout(function() {
+          $scope.success = false;
+        }, 5000);
+      });
+  };
 };
 
-exports.ProductDetailsController = function($scope, $routeParams, $http){
-	var encoded = encodeURIComponent($routeParams.id);
+exports.CategoryProductsController = function($scope, $routeParams, $http) {
+  var encoded = encodeURIComponent($routeParams.category);
 
-	$http.get('api/v1/product/id/' + encoded).success(function(data){
-		$scope.product = data.product;
-	});
+  $scope.price = undefined;
 
-	setTimeout(function(){
-		$scope.$emit('ProductDetailsController');
-	},0);	
+  $scope.handlePriceClick = function() {
+    if ($scope.price === undefined) {
+      $scope.price = -1;
+    } else {
+      $scope.price = 0 - $scope.price;
+    }
+    $scope.load();
+  };
+
+  $scope.load = function() {
+    var queryParams = { price: $scope.price };
+    $http.
+      get('/api/v1/product/category/' + encoded, { params: queryParams }).
+      success(function(data) {
+        $scope.products = data.products;
+      });
+  };
+
+  $scope.load();
+
+  setTimeout(function() {
+    $scope.$emit('CategoryProductsController');
+  }, 0);
 };
 
-exports.CategoryTreeController = function($scope, $routeParams, $http){
-	var encoded = encodeURIComponent($routeParams.category);
+exports.CategoryTreeController = function($scope, $routeParams, $http) {
+  var encoded = encodeURIComponent($routeParams.category);
+  $http.
+    get('/api/v1/category/id/' + encoded).
+    success(function(data) {
+      $scope.category = data.category;
+      $http.
+        get('/api/v1/category/parent/' + encoded).
+        success(function(data) {
+          $scope.children = data.categories;
+        });
+    });
 
-	$http.get('/api/v1/category/id/' + encoded)
-		.success(function(data){
-			$scope.category = data.category;
-			$http.get('/api/v1/category/parent/' + encoded)
-				.success(function(data){
-					$scope.children = data.categories;
-				});
-		});
-
-	setTimeout(function(){
-		$scope.$emit('CategoryTreeController');
-	},0);
+  setTimeout(function() {
+    $scope.$emit('CategoryTreeController');
+  }, 0);
 };
 
-exports.CategoryProductsController = function($scope, $routeParams, $http){
-	var encoded = encodeURIComponent($routeParams.category);
+exports.CheckoutController = function($scope, $user, $http) {
+  // For update cart
+  $scope.user = $user;
 
-	$scope.price = undefined;
+  $scope.updateCart = function() {
+    $http.
+      put('/api/v1/me/cart', $user.user).
+      success(function(data) {
+        $scoped.updated = true;
+      });
+  };
 
-	$scope.handlePriceClick = function(){
-		if ($scope.price === undefined){
-			$scope.price = -1;
-		} else {
-			$scope.price = 0 - $scope.price;
-		}
-		$scope.load();
-	};
+  // For checkout
+  Stripe.setPublishableKey('pk_test_KVC0AphhVxm52zdsM4WoBstU');
 
-	$scope.load = function(){
-		var queryParams = {price: $scope.price};
-		$http.get('/api/v1/product/category/' + encoded, {params: queryParams})
-			.success(function(data){
-				$scope.products = data.products;
-			});
-	};
+  $scope.stripeToken = {
+    number: '4242424242424242',
+    cvc: '123',
+    exp_month: '12',
+    exp_year: '2016'
+  };
 
-	$scope.load();
+  $scope.checkout = function() {
+    $scope.error = null;
+    Stripe.card.createToken($scope.stripeToken, function(status, response) {
+      if (status.error) {
+        $scope.error = status.error;
+        return;
+      }
 
-	setTimeout(function(){
-		$scope.$emit('CategoryProductsController');
-	},0);
+      $http.
+        post('/api/v1/checkout', { stripeToken: response.id }).
+        success(function(data) {
+          $scope.checkedOut = true;
+          $user.user.data.cart = [];
+        });
+    });
+  };
 };
 
-exports.AddToCartController = function($scope, $http, $user, $timeout){
-	$scope.addToCart = function(product){
-		var obj = {product: product._id, quantity: 1};
-		$user.user.data.cart.push(obj);
+exports.NavBarController = function($scope, $user) {
+  $scope.user = $user;
 
-		$http.put('/api/v1/me/cart', {data: {cart: $user.user.data.cart}})
-			.success(function(data){
-				$user.loadUser();
-				$scope.success = true;
-
-				$timeout(function(){
-					$scope.success = false;
-				}, 5000);
-			});
-	};
+  setTimeout(function() {
+    $scope.$emit('NavBarController');
+  }, 0);
 };
 
-exports.CheckoutController = function($scope, $user, $http){
-	$scope.user = $user;
+exports.ProductDetailsController = function($scope, $routeParams, $http) {
+  var encoded = encodeURIComponent($routeParams.id);
 
-	$scope.updateCart = function(){
-		$http.put('/api/v1/me/cart', $user.user)
-			.success(function(data){
-				$scope.updated = true;
-			});
-	};
+  $http.
+    get('/api/v1/product/id/' + encoded).
+    success(function(data) {
+      $scope.product = data.product;
+    });
 
-	Stripe.setPublishableKey('pk_test_gtX7fHbimk8jD5Fp6lyEmrkJ');
-
-	$scope.stripeToken = {
-		number: '4242424242424242',
-		cvc: '123',
-		exp_month: '12',
-		exp_year: '2016'
-	};
-
-	$scope.checkout = function(){
-		$scope.error = null;
-		Stripe.card.createToken($scope.stripeToken, function(status, response){
-			if(status.error){
-				$scope.error = status.error;
-				return;
-			}
-
-			$http.post('/api/v1/checkout', {stripeToken: response.id})
-				.success(function(data){
-					$scope.checkedOut = true;
-					$user.user.data.cart = [];
-				});
-		});
-	};
+  setTimeout(function() {
+    $scope.$emit('ProductDetailsController');
+  }, 0);
 };
+
+exports.SearchBarController = function($scope, $http) {
+  var encoded = encodeURIComponent($scope.searchText);
+  $scope.update = function() {
+    $http.get('/api/v1/product/text/' + $scope.searchText)
+      .success(function(data){
+        $scope.results = data.products;
+      });
+  };
+
+  setTimeout(function() {
+    $scope.$emit('SearchBarController');
+  }, 0);
+};
+
 },{}],2:[function(require,module,exports){
-exports.userMenu = function(){
-	return {
-		controller: 'UserMenuController',
-		templateUrl: '/ch4/7.navbar/templates/user_menu.html'
-	};
+exports.addToCart = function() {
+  return {
+    controller: 'AddToCartController',
+    templateUrl: '/assessment/templates/add_to_cart.html'
+  };
 };
 
-exports.productDetails = function(){
-	return {
-		controller: 'ProductDetailsController',
-		templateUrl: '/ch4/7.navbar/templates/product_details.html'
-	};
+exports.categoryProducts = function() {
+  return {
+    controller: 'CategoryProductsController',
+    templateUrl: '/assessment/templates/category_products.html'
+  }
 };
 
-exports.categoryProducts = function(){
-	return {
-		controller: 'CategoryProductsController',
-		templateUrl: '/ch4/7.navbar/templates/category_products.html'
-	};
+exports.categoryTree = function() {
+  return {
+    controller: 'CategoryTreeController',
+    templateUrl: '/assessment/templates/category_tree.html'
+  }
 };
 
-exports.categoryTree = function(){
-	return {
-		controller: 'CategoryTreeController',
-		templateUrl: '/ch4/7.navbar/templates/category_tree.html'
-	};
+exports.checkout = function() {
+  return {
+    controller: 'CheckoutController',
+    templateUrl: '/assessment/templates/checkout.html'
+  };
 };
 
-exports.addToCart = function(){
-	return {
-		controller: 'AddToCartController',
-		templateUrl: '/ch4/7.navbar/templates/add_to_cart.html'
-	};
+exports.navBar = function() {
+  return {
+    controller: 'NavBarController',
+    templateUrl: '/assessment/templates/nav_bar.html'
+  };
 };
 
-exports.checkout = function(){
-	return {
-		controller: 'CheckoutController',
-		templateUrl: '/ch4/7.navbar/templates/checkout.html'
-	};
+exports.productDetails = function() {
+  return {
+    controller: 'ProductDetailsController',
+    templateUrl: '/assessment/templates/product_details.html'
+  };
 };
+
+exports.searchBar = function() {
+  return {
+    controller: 'SearchBarController',
+    templateUrl: '/assessment/templates/search_bar.html'
+  };
+};
+
 },{}],3:[function(require,module,exports){
 var controllers = require('./controllers');
 var directives = require('./directives');
@@ -167,31 +199,36 @@ var _ = require('underscore');
 
 var components = angular.module('mean-retail.components', ['ng']);
 
-_.each(controllers, function(controller, name){
-	components.controller(name, controller);
+_.each(controllers, function(controller, name) {
+  components.controller(name, controller);
 });
 
-_.each(directives, function(directive, name){
-	components.directive(name, directive);
+_.each(directives, function(directive, name) {
+  components.directive(name, directive);
 });
 
-_.each(services, function(factory, name){
-	components.factory(name, factory);
+_.each(services, function(factory, name) {
+  components.factory(name, factory);
 });
 
 var app = angular.module('mean-retail', ['mean-retail.components', 'ngRoute']);
 
-app.config(function($routeProvider){
-	$routeProvider
-	.when('/product/:id', {
-		template: '<product-details></product-details>'
-	})
-	.when('/category/:category', {
-		templateUrl: '/ch4/7.navbar/templates/category_view.html'
-	})
-	.when('/checkout', {
-		template: '<checkout></checkout>'});
+app.config(function($routeProvider) {
+  $routeProvider.
+    when('/category/:category', {
+      templateUrl: '/assessment/templates/category_view.html'
+    }).
+    when('/checkout', {
+      template: '<checkout></checkout>'
+    }).
+    when('/product/:id', {
+      template: '<product-details></product-details>'
+    }).
+    when('/', {
+      template: '<search-bar></search-bar>'
+    });
 });
+
 },{"./controllers":1,"./directives":2,"./services":6,"underscore":5}],4:[function(require,module,exports){
 // Generated by CoffeeScript 1.7.1
 module.exports = {
@@ -1562,25 +1599,27 @@ module.exports = {
 },{}],6:[function(require,module,exports){
 var status = require('http-status');
 
-exports.$user = function($http){
-	var s = {};
+exports.$user = function($http) {
+  var s = {};
 
-	s.loadUser = function(){
-		$http.get('/api/v1/me')
-			.success(function(data){
-				s.user = data.user;
-			})
-			.error(function(data, $status){
-				if($status === status.UNAUTHORIZED){
-					s.user = null;
-				}
-			});
-	};
+  s.loadUser = function() {
+    $http.
+      get('/api/v1/me').
+      success(function(data) {
+        s.user = data.user;
+      }).
+      error(function(data, status) {
+        if (status === status.UNAUTHORIZED) {
+          s.user = null;
+        }
+      });
+  };
 
-	s.loadUser();
+  s.loadUser();
 
-	setInterval(s.loadUser, 60 * 60 * 1000);
+  setInterval(s.loadUser, 60 * 60 * 1000);
 
-	return s;
+  return s;
 };
+
 },{"http-status":4}]},{},[3])

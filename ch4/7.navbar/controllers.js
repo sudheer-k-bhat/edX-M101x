@@ -9,7 +9,7 @@ exports.UserMenuController = function($scope, $user){
 exports.ProductDetailsController = function($scope, $routeParams, $http){
 	var encoded = encodeURIComponent($routeParams.id);
 
-	$http.get('/api/v1/product/id/' + encoded).success(function(data){
+	$http.get('api/v1/product/id/' + encoded).success(function(data){
 		$scope.product = data.product;
 	});
 
@@ -62,4 +62,57 @@ exports.CategoryProductsController = function($scope, $routeParams, $http){
 	setTimeout(function(){
 		$scope.$emit('CategoryProductsController');
 	},0);
+};
+
+exports.AddToCartController = function($scope, $http, $user, $timeout){
+	$scope.addToCart = function(product){
+		var obj = {product: product._id, quantity: 1};
+		$user.user.data.cart.push(obj);
+
+		$http.put('/api/v1/me/cart', {data: {cart: $user.user.data.cart}})
+			.success(function(data){
+				$user.loadUser();
+				$scope.success = true;
+
+				$timeout(function(){
+					$scope.success = false;
+				}, 5000);
+			});
+	};
+};
+
+exports.CheckoutController = function($scope, $user, $http){
+	$scope.user = $user;
+
+	$scope.updateCart = function(){
+		$http.put('/api/v1/me/cart', $user.user)
+			.success(function(data){
+				$scope.updated = true;
+			});
+	};
+
+	Stripe.setPublishableKey('pk_test_gtX7fHbimk8jD5Fp6lyEmrkJ');
+
+	$scope.stripeToken = {
+		number: '4242424242424242',
+		cvc: '123',
+		exp_month: '12',
+		exp_year: '2016'
+	};
+
+	$scope.checkout = function(){
+		$scope.error = null;
+		Stripe.card.createToken($scope.stripeToken, function(status, response){
+			if(status.error){
+				$scope.error = status.error;
+				return;
+			}
+
+			$http.post('/api/v1/checkout', {stripeToken: response.id})
+				.success(function(data){
+					$scope.checkedOut = true;
+					$user.user.data.cart = [];
+				});
+		});
+	};
 };
